@@ -43,6 +43,13 @@ After installation, you can manage the server with these commands:
 
 ## 🌐 **Access Your Server**
 
+Once running, access your MCP Gateway at:
+
+- **🌐 Main Server**: http://localhost:4444
+- **🔧 Admin UI**: http://localhost:4444 (login: admin/changeme)
+- **📚 API Documentation**: http://localhost:4444/docs
+- **❤️ Health Check**: http://localhost:4444/health
+
 ## 🔧 **What This Solves**
 
 ✅ **Python Version Issues**: Automatically detects and uses Python 3.11+ (avoids 3.10 compatibility issues)  

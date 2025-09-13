@@ -17,7 +17,7 @@ set -euo pipefail
 PROJECT_NAME="mcpgateway"
 VENV_DIR="$HOME/.venv/$PROJECT_NAME"
 SERVER_HOST="0.0.0.0"
-SERVER_PORT="4444"  # Default MCP Context Forge port
+SERVER_PORT="8000"
 REQUIRED_PYTHON_VERSION="3.11"
 PIDFILE="/tmp/mcp-gateway.pid"
 
@@ -326,24 +326,14 @@ install_dependencies() {
     # Install the project with development dependencies
     log_step "Installing MCP Gateway with development dependencies..."
     
-    # Use virtual environment activation for UV compatibility
-    log_step "Installing MCP Gateway with development dependencies..."
-    
-    # Activate virtual environment and install dependencies
-    # This ensures UV works correctly with our custom venv location
-    source "$VENV_DIR/bin/activate"
-    
-    # Try different installation methods with activated environment
-    if command_exists "uv"; then
-        # UV should now work correctly with activated environment
-        uv pip install ".[dev]"
+    # Try different installation methods
+    if command_exists "uv" && [ -f "$VENV_DIR/bin/uv" ]; then
+        "$VENV_DIR/bin/uv" pip install ".[dev]"
+    elif command_exists "uv"; then
+        uv pip install --python "$VENV_DIR/bin/python" ".[dev]"
     else
-        # Fallback to standard pip
         "$VENV_DIR/bin/python" -m pip install ".[dev]"
     fi
-    
-    # Deactivate virtual environment
-    deactivate 2>/dev/null || true
     
     log_success "Dependencies installed successfully"
 }
@@ -361,14 +351,6 @@ setup_configuration() {
         fi
     else
         log_info ".env file already exists"
-    fi
-    
-    # Read PORT from .env file if it exists, otherwise use default
-    if [ -f ".env" ] && grep -q "^PORT=" .env; then
-        SERVER_PORT=$(grep "^PORT=" .env | cut -d'=' -f2)
-        log_info "Using PORT from .env file: $SERVER_PORT"
-    else
-        log_info "Using default PORT: $SERVER_PORT"
     fi
     
     # Display current configuration
@@ -568,7 +550,7 @@ LINUX SUPPORT:
     - Arch Linux (pacman)
 
 CONFIGURATION:
-    Default server: http://localhost:4444
+    Default server: http://localhost:8000
     Admin credentials: admin/changeme
     Configuration file: .env
 

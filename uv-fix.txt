@@ -1,0 +1,18 @@
+    # Use virtual environment activation for UV compatibility
+    log_step "Installing MCP Gateway with development dependencies..."
+    
+    # Activate virtual environment and install dependencies
+    # This ensures UV works correctly with our custom venv location
+    source "$VENV_DIR/bin/activate"
+    
+    # Try different installation methods with activated environment
+    if command_exists "uv"; then
+        # UV should now work correctly with activated environment
+        uv pip install ".[dev]"
+    else
+        # Fallback to standard pip
+        "$VENV_DIR/bin/python" -m pip install ".[dev]"
+    fi
+    
+    # Deactivate virtual environment
+    deactivate 2>/dev/null || true
