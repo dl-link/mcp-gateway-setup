@@ -35,7 +35,7 @@ cp mcp-gateway-setup/*.sh .
 
 ## 📋 **Prerequisites**
 
-- **macOS** or **Linux**
+- **macOS** or **Linux** (Ubuntu/Debian, RHEL/CentOS/Fedora, Arch)
 - **Python 3.11+** (script will detect and guide installation)
 - **Git** (for cloning repositories)
 - **curl** (for health checks)
@@ -297,3 +297,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Made with ❤️ for the MCP Community**
 
 [⭐ Star this repo](https://github.com/YOUR-USERNAME/mcp-gateway-setup) if it helped you!
+### 🐧 **Linux Compatibility Update**
+
+**Version 2.0** includes comprehensive Linux support:
+
+- **Automatic Distribution Detection**: Supports Ubuntu/Debian, RHEL/CentOS/Fedora, and Arch Linux
+- **Package Management**: Automatically installs `python3-venv`, `python3-dev`, and build tools
+- **Virtual Environment Fix**: Resolves the common `python3-venv` package missing error on Linux
+- **Cross-Platform Testing**: Verified on multiple Linux distributions including RAGFlow/Docker environments
+
+**Common Linux Issues Resolved:**
+```bash
+# This error is now automatically fixed:
+# ModuleNotFoundError: No module named 'venv'
+# Error: The virtual environment was not created successfully
+
+# Script now automatically runs:
+sudo apt install python3.12-venv python3-dev  # Ubuntu/Debian
+sudo dnf install python3-devel                # Fedora
+sudo yum install python3-devel                # RHEL/CentOS
+sudo pacman -S python python-virtualenv      # Arch
+```
+
