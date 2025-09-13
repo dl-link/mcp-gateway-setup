@@ -21,6 +21,9 @@ SERVER_PORT="4444"  # Default MCP Context Forge port
 REQUIRED_PYTHON_VERSION="3.11"
 PIDFILE="/tmp/mcp-gateway.pid"
 
+# Generated credentials (will be set during setup)
+GENERATED_PASSWORD=""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -62,6 +65,81 @@ log_header() {
 # Utility functions
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+generate_secure_password() {
+    # Generate a secure password using multiple methods for compatibility
+    if command_exists "openssl"; then
+        # Method 1: OpenSSL (most common)
+        openssl rand -base64 24 | tr -d "=+/" | cut -c1-20
+    elif command_exists "python3"; then
+        # Method 2: Python (fallback)
+        python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*') for _ in range(20)))"
+    elif [ -f "/dev/urandom" ]; then
+        # Method 3: /dev/urandom (Unix systems)
+        tr -dc 'A-Za-z0-9!@#$%^&*' </dev/urandom | head -c 20
+    else
+        # Method 4: Date-based fallback (least secure)
+        echo "McpGw_$(date +%s)_$(( RANDOM % 9999 ))"
+    fi
+}
+
+update_env_password() {
+    local new_password="$1"
+    
+    if [ -f ".env" ]; then
+        # Update existing .env file
+        if grep -q "^BASIC_AUTH_PASSWORD=" .env; then
+            # Replace existing password
+            if command_exists "sed"; then
+                sed -i.bak "s/^BASIC_AUTH_PASSWORD=.*/BASIC_AUTH_PASSWORD=$new_password/" .env
+                rm -f .env.bak 2>/dev/null
+            else
+                # Fallback method
+                grep -v "^BASIC_AUTH_PASSWORD=" .env > .env.tmp
+                echo "BASIC_AUTH_PASSWORD=$new_password" >> .env.tmp
+                mv .env.tmp .env
+            fi
+        else
+            # Add password line
+            echo "BASIC_AUTH_PASSWORD=$new_password" >> .env
+        fi
+        
+        # Ensure JWT secret is also updated
+        if ! grep -q "^JWT_SECRET_KEY=" .env; then
+            echo "JWT_SECRET_KEY=$(generate_secure_password)$(generate_secure_password)" >> .env
+        fi
+    fi
+}
+
+get_current_password() {
+    if [ -f ".env" ] && grep -q "^BASIC_AUTH_PASSWORD=" .env; then
+        grep "^BASIC_AUTH_PASSWORD=" .env | cut -d'=' -f2
+    else
+        echo "changeme"
+    fi
+}
+
+show_credentials() {
+    log_header "🔑 Admin Credentials"
+    local current_password=$(get_current_password)
+    
+    echo -e "${GREEN}"
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              🔐 LOGIN CREDENTIALS                            ║"
+    echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+    echo "║                                                                              ║"
+    echo "║  🌐 URL:      http://localhost:$SERVER_PORT                                      ║"
+    echo "║  👤 Username: admin                                                          ║"
+    echo "║  🔑 Password: $current_password                                   ║"
+    echo "║                                                                              ║"
+    echo "║  💡 Save these credentials in a secure location!                            ║"
+    echo "║                                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    
+    log_warning "IMPORTANT: Save these credentials! The password was auto-generated for security."
+    log_info "You can always check credentials later with: ./setup-mcp-gateway.sh status"
 }
 
 version_compare() {
@@ -363,6 +441,18 @@ setup_configuration() {
         log_info ".env file already exists"
     fi
     
+    # Generate secure password
+    log_step "Generating secure admin password..."
+    GENERATED_PASSWORD=$(generate_secure_password)
+    
+    if [ -n "$GENERATED_PASSWORD" ]; then
+        update_env_password "$GENERATED_PASSWORD"
+        log_success "Secure password generated and configured"
+    else
+        log_warning "Password generation failed, using default"
+        GENERATED_PASSWORD="changeme"
+    fi
+    
     # Read PORT from .env file if it exists, otherwise use default
     if [ -f ".env" ] && grep -q "^PORT=" .env; then
         SERVER_PORT=$(grep "^PORT=" .env | cut -d'=' -f2)
@@ -377,7 +467,8 @@ setup_configuration() {
     echo "  - Port: $SERVER_PORT"
     echo "  - Environment: development"
     echo "  - Database: SQLite (./mcp.db)"
-    echo "  - Auth: admin/changeme"
+    echo "  - Username: admin"
+    echo "  - Password: $GENERATED_PASSWORD"
 }
 
 start_server() {
@@ -403,9 +494,10 @@ start_server() {
     
     while [ $attempt -lt $max_attempts ]; do
         if curl -sf "http://localhost:$SERVER_PORT/health" >/dev/null 2>&1; then
+            local current_password=$(get_current_password)
             log_success "Server started successfully (PID: $server_pid)"
             log_info "Server is running at: http://localhost:$SERVER_PORT"
-            log_info "Admin UI: http://localhost:$SERVER_PORT (admin/changeme)"
+            log_info "Admin UI: http://localhost:$SERVER_PORT (admin/$current_password)"
             log_info "API Documentation: http://localhost:$SERVER_PORT/docs"
             log_info "Logs: $(pwd)/mcp-gateway.log"
             return 0
@@ -480,8 +572,9 @@ show_status() {
         
         echo
         log_info "Access URLs:"
+        local current_password=$(get_current_password)
         echo "  🌐 Main Server: http://localhost:$SERVER_PORT"
-        echo "  🔧 Admin UI: http://localhost:$SERVER_PORT (admin/changeme)"
+        echo "  🔧 Admin UI: http://localhost:$SERVER_PORT (admin/$current_password)"
         echo "  📚 API Docs: http://localhost:$SERVER_PORT/docs"
         echo "  ❤️  Health Check: http://localhost:$SERVER_PORT/health"
         
@@ -547,19 +640,26 @@ USAGE:
     ./setup-mcp-gateway-linux.sh [COMMAND]
 
 COMMANDS:
-    setup      Complete setup: dependencies, venv, config, and start server
-    start      Start the MCP Gateway server
-    stop       Stop the MCP Gateway server  
-    restart    Restart the MCP Gateway server
-    status     Show server status and connection info
-    clean      Clean up virtual environment and generated files
-    help       Show this help message
+    setup        Complete setup: dependencies, venv, config, and start server
+    start        Start the MCP Gateway server
+    stop         Stop the MCP Gateway server  
+    restart      Restart the MCP Gateway server
+    status       Show server status and connection info
+    credentials  Display login credentials (alias: creds, login)
+    clean        Clean up virtual environment and generated files
+    help         Show this help message
 
 EXAMPLES:
-    ./setup-mcp-gateway-linux.sh setup     # Full setup and start
-    ./setup-mcp-gateway-linux.sh start     # Start server
-    ./setup-mcp-gateway-linux.sh status    # Check status
-    ./setup-mcp-gateway-linux.sh stop      # Stop server
+    ./setup-mcp-gateway-linux.sh setup       # Full setup and start
+    ./setup-mcp-gateway-linux.sh start       # Start server
+    ./setup-mcp-gateway-linux.sh status      # Check status
+    ./setup-mcp-gateway-linux.sh credentials # Show login details
+    ./setup-mcp-gateway-linux.sh stop        # Stop server
+
+SECURITY FEATURES:
+    🔐 Auto-generates secure admin password during setup
+    🔑 Displays credentials clearly after successful installation
+    💡 Password can be retrieved anytime with 'credentials' command
 
 LINUX SUPPORT:
     Automatically detects and installs dependencies for:
@@ -569,7 +669,8 @@ LINUX SUPPORT:
 
 CONFIGURATION:
     Default server: http://localhost:4444
-    Admin credentials: admin/changeme
+    Admin username: admin
+    Admin password: auto-generated (shown during setup)
     Configuration file: .env
 
 For more information, visit: https://github.com/IBM/mcp-context-forge
@@ -589,6 +690,8 @@ main() {
             setup_configuration
             start_server
             echo
+            show_credentials
+            echo
             show_status
             ;;
         "start")
@@ -605,6 +708,11 @@ main() {
             ;;
         "status")
             show_status
+            echo
+            show_credentials
+            ;;
+        "credentials"|"creds"|"login")
+            show_credentials
             ;;
         "clean")
             log_header "🧹 Cleaning Environment"

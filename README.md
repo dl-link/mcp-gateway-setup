@@ -20,6 +20,7 @@ chmod +x setup-mcp-gateway.sh
 ✅ **Linux package dependencies** (python3-venv, dev tools)  
 ✅ **UV package manager** installation and configuration  
 ✅ **MCP Gateway dependencies** and database setup  
+✅ **Secure password generation** for admin account  
 ✅ **Server startup** and health verification  
 
 ## 🌍 **Platform Support**
@@ -33,12 +34,13 @@ chmod +x setup-mcp-gateway.sh
 After installation, you can manage the server with these commands:
 
 ```bash
-./setup-mcp-gateway.sh start      # Start server
-./setup-mcp-gateway.sh stop       # Stop server
-./setup-mcp-gateway.sh restart    # Restart server
-./setup-mcp-gateway.sh status     # Show status and URLs
-./setup-mcp-gateway.sh clean      # Clean environment
-./setup-mcp-gateway.sh help       # Show help
+./setup-mcp-gateway.sh start        # Start server
+./setup-mcp-gateway.sh stop         # Stop server
+./setup-mcp-gateway.sh restart      # Restart server
+./setup-mcp-gateway.sh status       # Show status and URLs
+./setup-mcp-gateway.sh credentials  # Show login credentials
+./setup-mcp-gateway.sh clean        # Clean environment
+./setup-mcp-gateway.sh help         # Show help
 ```
 
 ## 🌐 **Access Your Server**
@@ -46,9 +48,11 @@ After installation, you can manage the server with these commands:
 Once running, access your MCP Gateway at:
 
 - **🌐 Main Server**: http://localhost:4444
-- **🔧 Admin UI**: http://localhost:4444 (login: admin/changeme)
+- **🔧 Admin UI**: http://localhost:4444 (login: admin/auto-generated-password)
 - **📚 API Documentation**: http://localhost:4444/docs
 - **❤️ Health Check**: http://localhost:4444/health
+
+> 🔑 **The admin password is auto-generated during setup for security.** Check the console output or run `./setup-mcp-gateway.sh credentials` to see your login details.
 
 ## 🔧 **What This Solves**
 
@@ -56,6 +60,7 @@ Once running, access your MCP Gateway at:
 ✅ **Linux Dependencies**: Installs `python3-venv`, `python3-dev`, and build tools automatically  
 ✅ **Virtual Environment**: Creates properly isolated environments with correct Python version  
 ✅ **UV Package Manager**: Fast, reliable package installation  
+✅ **Security**: Auto-generates secure admin passwords and JWT secrets  
 ✅ **Server Management**: Background process handling with proper PID tracking  
 ✅ **Configuration**: Automated .env setup with sensible defaults  
 
