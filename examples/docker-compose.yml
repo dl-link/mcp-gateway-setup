@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  mcp-gateway:
+    build: .
+    ports:
+      - "4444:4444"
+    environment:
+      - DATABASE_URL=postgresql://mcp_user:secure_password@postgres:5432/mcp_prod
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_TYPE=redis
+      - ENVIRONMENT=production
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=mcp_prod
+      - POSTGRES_USER=mcp_user
+      - POSTGRES_PASSWORD=secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - mcp-gateway
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
